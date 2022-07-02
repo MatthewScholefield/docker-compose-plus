@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+env="$1"
+shift
+if [ "$env" != "dev" ] && [ "$env" != "staging" ] && [ "$env" != "prod" ]; then
+    if [ -n "$env" ]; then
+        echo "Error: Invalid env '$env'"
+    fi
+    echo "Usage: $0 dev|staging|prod"
+    exit 1
+fi
+if [ -f docker-compose.yml ]; then
+    extra_args="--env-file .env.$env -f docker-compose.yml -f docker-compose.$env.yml"
+    file=".env.$env"
+elif [ -f docker-compose.jsonnet ]; then
+    extra_args="-f -"
+    file=".env.$env.jsonnet"
+else
+    file="docker-compose.yml/docker-compose.jsonnet"
+fi
+[ -f "$file" ] || {
+    echo "Error: $file does not exist. Make sure you are in the right folder."
+    exit 1
+}
+{
+    if [ -f docker-compose.jsonnet ]; then
+        jsonnet "$file" --ext-code useSwarm=false
+    fi
+} | COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose $(echo $extra_args) -p "$(basename "$(pwd)")-$env" "$@"
+
