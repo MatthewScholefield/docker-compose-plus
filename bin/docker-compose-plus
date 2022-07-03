@@ -22,6 +22,9 @@ fi
     echo "Error: $file does not exist. Make sure you are in the right folder."
     exit 1
 }
+if [ "$env" = "prod" ] && [ "$1" = "deploy" ]; then
+    jsonnet "$file" --ext-code useSwarm=true | docker stack deploy --compose-file - "$(basename "$(pwd)")"
+fi
 {
     if [ -f docker-compose.jsonnet ]; then
         jsonnet "$file" --ext-code useSwarm=false
