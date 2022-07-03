@@ -24,6 +24,7 @@ fi
 }
 if [ "$env" = "prod" ] && [ "$1" = "deploy" ]; then
     jsonnet "$file" --ext-code useSwarm=true | docker stack deploy --compose-file - "$(basename "$(pwd)")"
+    exit $?
 fi
 {
     if [ -f docker-compose.jsonnet ]; then
