@@ -16,7 +16,7 @@ Docker compose plus is a simple wrapper around `docker-compose` that solves thes
 
 ## Usage
 
-`docker-compose.jsonnet`:
+`docker-compose.libsonnet`:
 
 ```jsonnet
 local useSwarm = std.extVar('useSwarm');
@@ -53,7 +53,7 @@ local DeploymentConfig(config) = if useSwarm then config else {};
 `.env.dev.jsonnet`:
 
 ```jsonnet
-local dc = import 'docker-compose.yml';
+local dc = import 'docker-compose.libsonnet';
 dc.MyAppDeployment(env='dev')
 ```
 
