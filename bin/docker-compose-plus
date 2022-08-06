@@ -12,7 +12,7 @@ fi
 if [ -f docker-compose.yml ]; then
     extra_args="--env-file .env.$env -f docker-compose.yml -f docker-compose.$env.yml"
     file=".env.$env"
-elif [ -f docker-compose.jsonnet ]; then
+elif [ -f ".env.$env.jsonnet" ]; then
     extra_args="-f -"
     file=".env.$env.jsonnet"
 else
