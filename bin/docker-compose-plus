@@ -16,7 +16,7 @@ elif [ -f ".env.$env.jsonnet" ]; then
     extra_args="-f -"
     file=".env.$env.jsonnet"
 else
-    file="docker-compose.yml/docker-compose.jsonnet"
+    file="docker-compose.yml/docker-compose.libsonnet"
 fi
 [ -f "$file" ] || {
     echo "Error: $file does not exist. Make sure you are in the right folder."
