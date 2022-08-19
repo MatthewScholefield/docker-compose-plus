@@ -27,7 +27,7 @@ if [ "$env" = "prod" ] && [ "$1" = "deploy" ]; then
     exit $?
 fi
 {
-    if [ -f docker-compose.jsonnet ]; then
+    if [ -f ".env.$env.jsonnet" ]; then
         jsonnet "$file" --ext-code useSwarm=false
     fi
 } | COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose $(echo $extra_args) -p "$(basename "$(pwd)")-$env" "$@"
