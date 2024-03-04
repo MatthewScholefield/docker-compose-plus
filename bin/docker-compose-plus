@@ -26,9 +26,18 @@ if [ "$env" = "prod" ] && [ "$1" = "deploy" ]; then
     jsonnet "$file" --ext-code useSwarm=true | docker stack deploy --compose-file - "$(basename "$(pwd)")"
     exit $?
 fi
+
+run_docker_compose() {
+    if command -v docker-compose &>/dev/null; then
+        docker-compose "$@"
+    else
+        docker compose "$@"
+    fi
+}
+
 {
     if [ -f ".env.$env.jsonnet" ]; then
         jsonnet "$file" --ext-code useSwarm=false
     fi
-} | COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose $(echo $extra_args) -p "$(basename "$(pwd)")-$env" "$@"
+} | COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 run_docker_compose $(echo $extra_args) -p "$(basename "$(pwd)")-$env" "$@"
 
