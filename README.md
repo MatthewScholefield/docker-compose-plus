@@ -90,7 +90,6 @@ git clone https://github.com/MatthewScholefield/docker-compose-plus "$install_di
 latest_artifact_url=$(curl -fsSL https://api.github.com/repos/google/go-jsonnet/releases/latest | jq -r '.assets[] | select(.name | endswith("_linux_amd64.tar.gz")) | .browser_download_url' | head -n1)
 curl -fsSL "$latest_artifact_url" | gzip -dc | tar xf - -C "$install_dir/bin"
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do [ -f "$rc" ] && printf '%s\n' 'PATH="$PATH:'"$install_dir_str"'/bin"' >> "$rc"; done
-echo 'PATH=$PATH:'"$install_dir_str"'/bin' >> ~/.bashrc
 ```
 
 This allows for easy future upgrades by pulling via git (`cd ~/opt/docker-compose-plus && git pull`).
