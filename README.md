@@ -18,6 +18,17 @@ Docker compose plus is a simple wrapper around `docker-compose` that solves thes
 
 *Special case: Deploy is equivalent to `docker stack deploy`*
 
+Compose project names use `<folder>-<env>`. The folder name is lowercased,
+characters other than ASCII letters, digits, underscores, and hyphens are removed,
+and leading underscores and hyphens are stripped. For example,
+`.foo_worktree-1/` becomes `foo_worktree-1-dev` for `dcp dev`.
+Already-valid folder names are unchanged; names that normalize to an empty string
+are rejected. Swarm deployment uses the same normalized folder name without the
+environment suffix.
+
+Different folders can normalize to the same project name (for example, `.foo`
+and `foo`), so use distinct normalized folder names for independent stacks.
+
 ### Definitions
 
 Define `docker-compose.libsonnet`:
