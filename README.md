@@ -87,6 +87,26 @@ dcp prod push  # Push to registry
 dcp prod deploy  # Deploy stacks
 ```
 
+Deploy only selected services:
+```bash
+dcp prod deploy api
+dcp prod deploy api worker
+```
+
+Service names match the keys in the generated `services` object. With no service
+arguments, `deploy` deploys the entire stack. With service arguments, it deploys
+only those services under the same stack name, leaving other services untouched.
+Unknown names and Jsonnet rendering errors fail before Docker is invoked.
+
+Targeted deployments retain only referenced top-level networks, volumes, secrets,
+and configs, including a declared default network when needed. They remove
+`depends_on` and do not deploy dependencies automatically; deploy those separately
+if they are not already running. Shared resources still follow Swarm rules:
+existing networks cannot simply be reconfigured, and secrets/configs are immutable.
+Deploy does not build or push images, and Docker returns before rollout completes
+by default. Targeted deployments never use `--prune`, which would remove omitted
+services.
+
 ## Installation
 
 Installation is only two steps:
@@ -103,4 +123,12 @@ curl -fsSL "$latest_artifact_url" | gzip -dc | tar xf - -C "$install_dir/bin"
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do [ -f "$rc" ] && printf '%s\n' 'PATH="$PATH:'"$install_dir_str"'/bin"' >> "$rc"; done
 ```
 
-This allows for easy future upgrades by pulling via git (`cd ~/opt/docker-compose-plus && git pull`).
+Update a Git-clone installation from any directory:
+```bash
+dcp self-update
+```
+
+This resolves the installed script (including symlinks) and runs `git pull --ff-only`
+in its repository. Standalone or nonstandard installations receive an error instead.
+Git errors are returned unchanged; divergent branches are not automatically merged.
+This updates the wrapper, not the separately installed Jsonnet binary.

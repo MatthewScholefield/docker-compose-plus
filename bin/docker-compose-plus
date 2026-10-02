@@ -1,5 +1,31 @@
 #!/usr/bin/env bash
 
+if [ "$1" = "self-update" ]; then
+    if [ "$#" -ne 1 ]; then
+        echo "Usage: $0 self-update" >&2
+        exit 1
+    fi
+    if ! command -v git &>/dev/null; then
+        echo "Error: self-update requires Git." >&2
+        exit 1
+    fi
+    script_path="${BASH_SOURCE[0]}"
+    while [ -L "$script_path" ]; do
+        script_dir="$(cd -P "$(dirname "$script_path")" && pwd)" || exit $?
+        script_path="$(readlink "$script_path")" || exit $?
+        [[ "$script_path" = /* ]] || script_path="$script_dir/$script_path"
+    done
+    script_dir="$(cd -P "$(dirname "$script_path")" && pwd)" || exit $?
+    repo="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null)" || repo=""
+    if [ -z "$repo" ] || [ ! "$repo/bin/docker-compose-plus" -ef "$script_path" ] ||
+       ! git -C "$repo" ls-files --error-unmatch bin/docker-compose-plus &>/dev/null; then
+        echo "Error: self-update is only available when installed from a Git clone of docker-compose-plus. This appears to be a standalone or nonstandard installation." >&2
+        exit 1
+    fi
+    git -C "$repo" pull --ff-only
+    exit $?
+fi
+
 env="$1"
 shift
 if [ "$env" != "dev" ] && [ "$env" != "staging" ] && [ "$env" != "prod" ]; then
@@ -30,7 +56,67 @@ if [ -z "$project_name" ]; then
 fi
 
 if [ "$env" = "prod" ] && [ "$1" = "deploy" ]; then
-    jsonnet "$file" --ext-code useSwarm=true | docker stack deploy --compose-file - "$project_name"
+    shift
+    rendered="$(jsonnet "$file" --ext-code useSwarm=true)" || exit $?
+    if [ "$#" -gt 0 ]; then
+        service_args=()
+        service_index=0
+        for service in "$@"; do
+            service_args+=(--ext-str "service$service_index=$service")
+            service_index=$((service_index + 1))
+        done
+        rendered="$(jsonnet --ext-code-file config=/dev/stdin \
+            --ext-code "serviceCount=$#" "${service_args[@]}" -e '
+            local config = std.extVar("config");
+            local selected = std.set([
+                std.extVar("service" + std.toString(i))
+                for i in std.range(0, std.extVar("serviceCount") - 1)
+            ]);
+            local unknown = [s for s in selected if !std.objectHas(config.services, s)];
+            local services = {
+                [s]: {
+                    [field]: config.services[s][field]
+                    for field in std.objectFields(config.services[s])
+                    if field != "depends_on"
+                }
+                for s in selected
+            };
+            local references(service, kind) =
+                local entries = if std.objectHas(service, kind) then service[kind] else [];
+                if kind == "networks" then
+                    if std.length(entries) == 0 && !std.objectHas(service, "network_mode") then ["default"]
+                    else if std.type(entries) == "object" then std.objectFields(entries)
+                    else entries
+                else [
+                    if std.type(entry) == "string" then
+                        if kind == "volumes" then std.split(entry, ":")[0] else entry
+                    else if std.objectHas(entry, "source") then entry.source else ""
+                    for entry in entries
+                    if kind != "volumes" ||
+                       (std.type(entry) == "string" && std.length(std.split(entry, ":")) > 1) ||
+                       (std.type(entry) == "object" && std.objectHas(entry, "type") && entry.type == "volume")
+                ];
+            local resources = ["networks", "volumes", "secrets", "configs"];
+            assert std.length(unknown) == 0 : "Unknown service(s): " + std.join(", ", unknown);
+            {
+                [field]: config[field]
+                for field in std.objectFields(config)
+                if field != "services" && !std.member(resources, field)
+            } + { services: services } + {
+                [kind]: {
+                    [name]: config[kind][name]
+                    for name in std.objectFields(config[kind])
+                    if std.member(
+                        std.flattenArrays([references(services[s], kind) for s in std.objectFields(services)]),
+                        name
+                    )
+                }
+                for kind in resources
+                if std.objectHas(config, kind)
+            }
+        ' <<< "$rendered")" || exit $?
+    fi
+    docker stack deploy --compose-file - "$project_name" <<< "$rendered"
     exit $?
 fi
 
